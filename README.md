@@ -1,67 +1,78 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+1- the code is ok it use the repository pattern .
+every model has it's own repository and all shared  common methods like (get , find , where ..etc) 
+so it's a good way to use the repository pattern with it and all extend from the BaseRepository that contain all shared methods and every repo has extend from it plus it's diffrent own functionallity .
+it use dependy injection in every where and that's a good way to use a Singlton Pattern with a single object .
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+2- there a something is wrong here or not ok the BookingControll is responsibile for many things not only booking functionallity for example .
 
-## About Laravel
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+   public function resendNotifications(Request $request)
+    {
+        $data = $request->all();
+        $job = $this->repository->find($data['jobid']);
+        $job_data = $this->repository->jobToData($job);
+        $this->repository->sendNotificationTranslator($job, $job_data, '*');
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+        return response(['success' => 'Push sent']);
+    }
 
-## Learning Laravel
+    
+sending notification is not responsibility for BookingControll it must be in another service so here  
+"We did not achieve the single responsibility principle"
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+3- here we did not achieve the open/closed principle 
 
-## Laravel Sponsors
+    public function resendNotifications(Request $request)
+    {
+        $data = $request->all();
+        $job = $this->repository->find($data['jobid']);
+        $job_data = $this->repository->jobToData($job);
+        $this->repository->sendNotificationTranslator($job, $job_data, '*');
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+        return response(['success' => 'Push sent']);
+    }
 
-### Premium Partners
+    /**
+     * Sends SMS to Translator
+     * @param Request $request
+     * @return \Illuminate\Contracts\Routing\ResponseFactory|\Symfony\Component\HttpFoundation\Response
+     */
+    public function resendSMSNotifications(Request $request)
+    {
+        $data = $request->all();
+        $job = $this->repository->find($data['jobid']);
+        $job_data = $this->repository->jobToData($job);
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+        try {
+            $this->repository->sendSMSNotificationToTranslator($job);
+            return response(['success' => 'SMS sent']);
+        } catch (\Exception $e) {
+            return response(['success' => $e->getMessage()]);
+        }
+    }
 
-## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+we must make a interface then every sms and notification and another sending methods implement it 
+i alreeady make it in refactoring the code
+so we can achieve SOLID principles in this case
 
-## Code of Conduct
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-## Security Vulnerabilities
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## License
+Refactoring 
+1- Request $request  i change it because we should use a Request for every model like BookingRequest that contain every things a about the equest like rules and authorization and so on.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# refacor-last
+2- i change all $request->all();  to $request->validated(); for security reasons we shouldn't take all request like this first we should validate it then take the validated data $request->validated();
+
+3- i refactor sending notifications .
+we have to methods to send notification (sms and notification) .
+i have created interface and create service for every method then implement sendNotification methods for all
+this solution will resolve opend/closed and liskove pattern .
+then bind ther serivces with the interface in AppServiceProvider
+
+4- i used dependy injection in every where i can use 
+
